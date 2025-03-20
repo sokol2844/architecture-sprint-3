@@ -137,28 +137,151 @@ Rel(monitoringService, monitoringDb, "Сохранение и получение
 
 **Диаграмма компонентов (Components)**
 
-Добавьте диаграмму для каждого из выделенных микросервисов.
+Для примера реализации диаграммы компонентов углубимся в контейнер Управления устройствами
+
+```markdown
+@startuml
+!include https://raw.githubusercontent.com/plantuml-stdlib/C4-PlantUML/master/C4_Component.puml
+
+Person(user, "Пользователь")
+
+System_Boundary(smartHome, "Умный дом") {
+
+    Container(apiGateway, "API Gateway")
+
+
+    Container_Boundary(managmentContainer, "Управление устройствами") {
+        Component(api, "API", "Java")
+        Component(registrationComponent, "Регистрация новых устройств", "Java")
+        Component(handlersComponent, "Обработчик команд", "Java")
+        Component(stateComponent, "Менеджер состояния устройств", "Java")
+
+        ContainerDb(managmentDb, "Managment DB", "PostgreSQL", "Хранение информации об устройствах")
+    }
+
+    SystemQueue(kafka, "Kafka", "Брокер сообщений для асинхронного взаимодействия сервисов")
+}
+
+Rel(user, apiGateway, "Взаимодействие с системой через UI")
+Rel(apiGateway, api, "Запросы к сервису управлением устройств")
+Rel(api, registrationComponent, "Запросы на регистрацию новых устройств")
+Rel(api, handlersComponent, "Запросы на управление устройствами")
+Rel(handlersComponent, kafka, "Публикация событий управления устройствами")
+Rel(stateComponent, kafka, "Вычитка изменения состояния устройств")
+Rel(handlersComponent, stateComponent, "Получение измененного состояния устройства для завершения события управления устройством")
+Rel(registrationComponent, managmentDb, "Хранение данных сервиса")
+Rel(handlersComponent, managmentDb, "Хранение данных сервиса")
+Rel(stateComponent, managmentDb, "Хранение данных сервиса")
+@enduml
+```
 
 **Диаграмма кода (Code)**
 
-Добавьте одну диаграмму или несколько.
+```markdown
+@startuml
+title Диаграмма кода, показывающая принцип наследования классов для разных устройств
+
+!includeurl https://raw.githubusercontent.com/RicardoNiepel/C4-PlantUML/master/C4_Component.puml
+
+class User {
+  +String name
+  +String email
+  +String id
+  +List<Device> devices
+}
+
+interface Device {
+  +String id
+  +{abstract} void getState()
+  +{abstract} void setState()
+}
+
+class HeatingDevice {
+  +String id
+  +HeatingDeviceState getState()
+  +void setState()
+}
+
+class HeatingDeviceState {
+  +Number currentTemperature
+  +Number targetTemperature
+  +Number power
+}
+
+class LightDevice {
+  +String id
+  +LightDeviceState getState()
+  +void setState()
+}
+
+class LightDeviceState {
+  +String currentLightPower
+  +String operatingMode
+}
+
+User "1" -- "0..*" HeatingDevice : has
+User "1" -- "0..*" LightDevice : has
+Device <|.. HeatingDevice
+HeatingDevice "1" -- "1" HeatingDeviceState : includes
+Device <|.. LightDevice
+LightDevice "1" -- "1" LightDeviceState : includes
+@enduml
+```
 
 # Задание 3. Разработка ER-диаграммы
 
-Добавьте сюда ER-диаграмму. Она должна отражать ключевые сущности системы, их атрибуты и тип связей между ними.
+```markdown
+@startuml
+entity User {
+  * id : UUID
+  * name : String
+  * email : String
+  * created_at : DateTime
+}
 
-Четвёртое задание — дополнительное. Его можно сделать по желанию. Чтобы ревьюер быстрее проверил ваше решение, укажите, сделали вы это задание или нет. Для этого оставьте нужный эмодзи около заголовка задания:
+entity House {
+  * id : UUID
+  * address : String
+  * user_id : UUID
+}
 
-✅ — вы выполнили задание.
+entity Device {
+  * id : UUID
+  * type_id : UUID
+  * serial_number : String
+  * house_id : String
+  * status : Boolean
+  * created_at : DateTime
+}
 
-❌ — вы пропустили задание.
+entity DeviceType {
+  * id : UUID
+  * name : String
+  * description : String
+}
 
-# ✅ ❌ Задание 4. Создание и документирование API
+entity Module {
+  * id : UUID
+  * name : String
+  * description : String
+  * created_at : DateTime
+}
 
-### 1. Тип API
+entity TelemetryData {
+  * id : UUID
+  * device_id : UUID
+  * timestamp : DateTime
+  * temperature : Number
+  * power_status : Boolean
+}
 
-Укажите, какой тип API вы будете использовать для взаимодействия микросервисов. Объясните своё решение.
+User }o-o{ House : "владеет"
+House }o--|| Device : "содержит"
+Device }o--|| DeviceType : "содержит"
+Device }o--|| TelemetryData : "генерирует"
+Device }o--|| Module : "содержит"
+@enduml
+```
 
-### 2. Документация API
 
-Здесь приложите ссылки на документацию API для микросервисов, которые вы спроектировали в первой части проектной работы. Для документирования используйте Swagger/OpenAPI или AsyncAPI.
+# ❌ Задание 4. Создание и документирование API
